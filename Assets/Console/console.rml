@@ -1,0 +1,17 @@
+<rml>
+<head>
+    <title>Console</title>
+    <link type="text/rcss" href="console.rcss"/>
+</head>
+<body id="console_overlay">
+    <div id="log_container">
+        <div id="log_content">
+        </div>
+    </div>
+
+    <div id="input_area">
+        <input type="text" id="console_input" placeholder="Enter command..." autofocus/>
+        <button id="clear_button">Clear</button>
+    </div>
+</body>
+</rml>

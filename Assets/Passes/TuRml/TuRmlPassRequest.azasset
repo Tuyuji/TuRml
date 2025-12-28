@@ -1,0 +1,19 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "PassRequest",
+    "ClassData": {
+        "Name": "TuRmlPass",
+        "TemplateName": "TuRmlPassTemplate",
+        "Enabled": true,
+        "Connections": [
+            {
+                "LocalSlot": "ColorInputOutput",
+                "AttachmentRef": {
+                    "Pass": "AuxGeomPass",
+                    "Attachment": "ColorInputOutput"
+                }
+            }
+        ]
+    }
+}

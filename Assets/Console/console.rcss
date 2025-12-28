@@ -1,0 +1,115 @@
+body#console_overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 50%;
+
+    display: flex;
+    flex-direction: column;
+
+    background-color: #2d3a2e;
+    color: #e8f5e9;
+    font-family: "JetBrains Mono";
+    font-size: 14dp;
+    z-index: 10000;
+}
+
+#log_container {
+    flex: 1;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    scrollbar-margin: 15dp;
+}
+
+scrollbarvertical {
+    width: 12dp;
+}
+
+scrollbarvertical slidertrack {
+    background-color: #638a59;
+    border-radius: 6dp;
+}
+
+scrollbarvertical sliderbar {
+    background-color: #97d488;
+    border-radius: 6dp;
+}
+
+scrollbarvertical sliderbar:hover {
+    background-color: #9fdf8f;
+}
+
+scrollbarvertical sliderbar:active {
+    background-color: #b6ffa4;
+}
+
+#log_content {
+    padding-right: 25dp;
+    box-sizing: border-box;
+}
+
+.log_entry {
+    margin: 2dp 0;
+    white-space: pre-wrap;
+    display: block;
+}
+
+.log_error { color: #ff6b6b; }
+.log_warning { color: #ffd93d; }
+.log_info { color: #e8f5e9; }
+.log_debug { color: #b0bec5; }
+
+#input_area {
+    flex-shrink: 0;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5dp;
+
+    height: 40dp;
+    padding: 5dp;
+    border-top: 1px #638a59;
+    box-sizing: border-box;
+}
+
+#console_input {
+    flex: 1;
+
+    padding: 5dp;
+    background-color: #1a241b;
+    color: #e8f5e9;
+    border: 1px #638a59;
+    box-sizing: border-box;
+}
+
+#console_input:focus {
+    border: 1px #97d488;
+    background-color: #253426;
+}
+
+#clear_button {
+    flex-shrink: 0;
+
+    padding: 5dp;
+    padding-left: 6dp;
+    padding-right: 6dp;
+    background-color: #638a59;
+    color: #e8f5e9;
+    border: 1px #97d488;
+    box-sizing: border-box;
+    cursor: pointer;
+    text-align: center;
+}
+
+#clear_button:hover {
+    background-color: #97d488;
+    color: #1a241b;
+}
+
+#clear_button:active {
+    background-color: #b6ffa4;
+    color: #1a241b;
+}

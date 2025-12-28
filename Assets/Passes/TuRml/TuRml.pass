@@ -1,0 +1,46 @@
+{
+  "Type": "JsonSerialization",
+  "Version": 1,
+  "ClassName": "PassAsset",
+  "ClassData": {
+    "PassTemplate": {
+      "Name": "TuRmlPassTemplate",
+      "PassClass": "TuRmlParentPass",
+      "Slots": [
+        {
+          "Name": "ColorInputOutput",
+          "SlotType": "InputOutput"
+        },
+        {
+          "Name": "DepthInputOutput",
+          "SlotType": "InputOutput",
+          "ScopeAttachmentUsage": "DepthStencil"
+        }
+      ],
+      "ImageAttachments": [
+        {
+          "Name": "DepthStencilImage",
+          "ImageDescriptor": {
+            "Format": "D32_FLOAT_S8X24_UINT",
+            "SharedQueueMask": "Graphics"
+          },
+          "SizeSource": {
+            "Source": {
+              "Pass": "This",
+              "Attachment": "ColorInputOutput"
+            }
+          }
+        }
+      ],
+      "Connections": [
+        {
+          "LocalSlot": "DepthInputOutput",
+          "AttachmentRef": {
+            "Pass": "This",
+            "Attachment": "DepthStencilImage"
+          }
+        }
+      ]
+    }
+  }
+}

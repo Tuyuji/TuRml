@@ -1,0 +1,116 @@
+<rml>
+<head>
+    <title>Console</title>
+    <link type="text/rcss" href="console.rcss"/>
+    <style>
+        body#console_overlay {
+            position: absolute;
+            top: 100dp;
+            left: 100dp;
+            width: 950dp;
+            height: 500dp;
+
+            min-width: 300dp;
+            min-height: 200dp;
+
+            border: 2dp #638a59;
+            border-radius: 8dp;
+            background-color: #2d3a2e;
+
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        div#title_bar {
+            flex-shrink: 0;
+            height: 28dp;
+            background-color: #1f2a20;
+            border-bottom: 1dp #638a59;
+
+            display: flex;
+            align-items: center;
+            padding: 0 10dp;
+        }
+
+        div#title_bar handle {
+            flex: 1;
+        }
+
+        div#title_bar span#title {
+            font-size: 16dp;
+            font-weight: bold;
+            color: #e8f5e9;
+        }
+
+        button#minimize_button {
+            flex-shrink: 0;
+            width: 24dp;
+            height: 20dp;
+            background-color: #638a59;
+            border: 1dp #97d488;
+            color: #e8f5e9;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14dp;
+            padding: 0;
+        }
+
+        button#minimize_button:hover {
+            background-color: #97d488;
+            color: #1a241b;
+        }
+
+        button#minimize_button:active {
+            background-color: #b6ffa4;
+            color: #1a241b;
+        }
+
+        div#window_container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 4dp;
+            overflow: hidden;
+        }
+
+        div#content {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #log_container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #input_area {
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body id="console_overlay" class="window">
+    <div id="title_bar">
+        <handle move_target="#document">
+            <span id="title">Console</span>
+        </handle>
+        <button id="minimize_button">_</button>
+    </div>
+    <div id="window_container">
+        <div id="content">
+            <div id="log_container">
+            </div>
+
+            <div id="input_area">
+                <input type="text" id="console_input" placeholder="Enter command..." autofocus/>
+                <button id="clear_button">Clear</button>
+            </div>
+        </div>
+    </div>
+    <handle size_target="#document" style="position: absolute; width: 16dp; height: 16dp; bottom: 0px; right: 0px; cursor: resize;"></handle>
+</body>
+</rml>

@@ -1,0 +1,72 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
+ *
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ */
+#include <Atom/Features/SrgSemantics.azsli>
+
+ShaderResourceGroup DrawSrg : SRG_PerDraw
+{
+    float4x4 m_transform;
+    float2 m_translate;
+    bool m_hasTexture;
+    
+    Texture2D m_texture;
+    Sampler m_sampler
+    {
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Linear;
+        AddressU = Clamp;
+        AddressV = Clamp;
+    };
+}
+
+struct VSInput
+{
+    float2 position : POSITION;
+    float4 color : COLOR;
+    float2 texCoord : TEXCOORD0;
+};
+
+struct VSOutput
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+    float2 texCoord : TEXCOORD0;
+};
+
+VSOutput MainVS(VSInput input)
+{
+    VSOutput output;
+
+    output.texCoord = input.texCoord;
+    output.color = input.color;
+
+    float2 translatedPos = input.position + DrawSrg::m_translate;
+    output.position = mul(DrawSrg::m_transform, float4(translatedPos, 0.0f, 1.0f));
+    return output;
+}
+
+struct PSOutput
+{
+    float4 color : SV_Target0;
+};
+
+PSOutput MainPS(VSOutput input)
+{
+    PSOutput output;
+
+    if (DrawSrg::m_hasTexture)
+    {
+        float4 texColor = DrawSrg::m_texture.Sample(DrawSrg::m_sampler, input.texCoord);
+        output.color = input.color * texColor;
+    }
+    else
+    {
+        output.color = input.color;
+    }
+    
+    return output;
+}

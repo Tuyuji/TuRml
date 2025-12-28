@@ -1,0 +1,34 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
+ *
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ */
+struct VSInput
+{
+    uint vertexID : SV_VertexID;
+};
+
+struct VSOutput
+{
+    float4 position : SV_Position;
+};
+
+VSOutput MainVS(VSInput input)
+{
+    VSOutput output;
+    float2 texcoord = float2((input.vertexID << 1) & 2, input.vertexID & 2);
+    output.position = float4(texcoord * 2.0f - 1.0f, 0.0f, 1.0f);
+    return output;
+}
+
+struct PSOutput
+{
+    float4 color : SV_Target0;
+};
+
+PSOutput MainPS(VSOutput input)
+{
+    PSOutput output;
+    return output;
+}

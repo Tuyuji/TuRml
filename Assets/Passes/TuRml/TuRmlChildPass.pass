@@ -1,0 +1,30 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "PassAsset",
+    "ClassData": {
+        "PassTemplate": {
+            "Name": "TuRmlChildPassTemplate",
+            "PassClass": "TuRmlChildPass",
+            "Slots": [
+                {
+                    "Name": "ColorOutput",
+                    "SlotType": "Output",
+                    "ScopeAttachmentUsage": "RenderTarget",
+                    "LoadStoreAction": {
+                        "LoadAction": "Clear",
+                        "ClearValue": {
+                            "Type": "Vector4Float",
+                            "Value": [0.0, 0.0, 0.0, 1.0]
+                        }
+                    }
+                }
+            ],
+            "PassData": {
+                "$type": "RasterPassData",
+                "DrawListTag": "turml",
+                "BindViewSrg": true
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "AssetAliasesSourceData",
+    "ClassData": {
+        "AssetPaths": [
+            {
+                "Name": "TuRmlPassTemplate",
+                "Path": "Passes/TuRml/TuRml.pass"
+            },
+            {
+                "Name": "TuRmlChildPassTemplate",
+                "Path": "Passes/TuRml/TuRmlChildPass.pass"
+            },
+            {
+                "Name": "TuRmlChildPassDirectTemplate",
+                "Path": "Passes/TuRml/TuRmlChildPassDirect.pass"
+            }
+        ]
+    }
+}
