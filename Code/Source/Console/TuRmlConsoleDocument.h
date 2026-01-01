@@ -72,14 +72,16 @@ namespace TuRml
 
         void AddLog(const char* window, const char* message, AZ::LogLevel level);
         AZ::Color GetColorForLogLevel(AZ::LogLevel level) const;
-        void RebuildLogHTML();
+        void UpdateLogElements();
         void UpdateLogDisplay();
 
         Rml::ElementDocument* m_doc = nullptr;
-        AZStd::deque<LogEntry> m_logEntries = {};
+
+        //Thread-safe queue for any new logs
+        AZStd::queue<LogEntry> m_logEntries = {};
         AZStd::mutex m_logMutex = {};
+
         static constexpr size_t MaxLogEntries = 1024;
-        bool m_logsDirty = false;
 
         AZStd::deque<AZStd::string> m_commandHistory = {};
         int m_historyIndex = -1;

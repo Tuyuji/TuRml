@@ -39,11 +39,6 @@ namespace TuRml
     {
         AZ::SystemTickBus::Handler::BusDisconnect();
         AZ::Debug::TraceMessageBus::Handler::BusDisconnect();
-        {
-            AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
-            m_logEntries.clear();
-        }
-
         m_commandHistory.clear();
     }
 
@@ -186,9 +181,11 @@ namespace TuRml
 
     void TuRmlConsoleDocument::OnClearLogs()
     {
-        AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
-        m_logEntries.clear();
-        m_logsDirty = true;
+        Rml::Element* logContent = m_doc->GetElementById("log_container");
+        if (logContent)
+        {
+            logContent->SetInnerRML("");
+        }
     }
 
     void TuRmlConsoleDocument::OnHistoryUp()
@@ -329,14 +326,7 @@ namespace TuRml
         }
         entry.color = GetColorForLogLevel(level);
 
-        m_logEntries.push_back(AZStd::move(entry));
-
-        if (m_logEntries.size() > MaxLogEntries)
-        {
-            m_logEntries.pop_front();
-        }
-
-        m_logsDirty = true; // Mark for rebuild
+        m_logEntries.push(AZStd::move(entry));
     }
 
     AZ::Color TuRmlConsoleDocument::GetColorForLogLevel(AZ::LogLevel level) const
@@ -358,16 +348,10 @@ namespace TuRml
 
     void TuRmlConsoleDocument::UpdateLogDisplay()
     {
-        if (!m_logsDirty)
-        {
-            return;
-        }
-
-        RebuildLogHTML();
-        m_logsDirty = false;
+        UpdateLogElements();
     }
 
-    void TuRmlConsoleDocument::RebuildLogHTML()
+    void TuRmlConsoleDocument::UpdateLogElements()
     {
         Rml::Element* logContent = m_doc->GetElementById("log_container");
         if (!logContent)
@@ -375,42 +359,49 @@ namespace TuRml
             return;
         }
 
-        //Clear it out
-        logContent->SetInnerRML("");
+        const bool hasNewLogs = !m_logEntries.empty();
 
-        AZStd::string html;
+        AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
+        while (!m_logEntries.empty())
         {
-            AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
-
-            for (const LogEntry& entry : m_logEntries)
+            const auto& entry = m_logEntries.front();
+            const char* cssClass = "log_info";
+            if (entry.color == AZ::Colors::Red)
             {
-                const char* cssClass = "log_info";
-                if (entry.color == AZ::Colors::Red)
-                {
-                    cssClass = "log_error";
-                }
-                else if (entry.color == AZ::Colors::Yellow)
-                {
-                    cssClass = "log_warning";
-                }
-                else if (entry.color == AZ::Colors::Gray)
-                {
-                    cssClass = "log_debug";
-                }
+                cssClass = "log_error";
+            }
+            else if (entry.color == AZ::Colors::Yellow)
+            {
+                cssClass = "log_warning";
+            }
+            else if (entry.color == AZ::Colors::Gray)
+            {
+                cssClass = "log_debug";
+            }
 
-                auto element = m_doc->CreateElement("div");
-                if (!element)
-                {
-                    return;
-                }
-                element->SetClassNames("log_entry " + Rml::String(cssClass));
-                element->SetInnerRML(entry.message.c_str());
+            auto element = m_doc->CreateElement("div");
+            if (!element)
+            {
+                return;
+            }
+            element->SetClassNames("log_entry " + Rml::String(cssClass));
+            element->SetInnerRML(entry.message.c_str());
 
-                logContent->AppendChild(std::move(element));
+            logContent->AppendChild(std::move(element));
+
+            m_logEntries.pop();
+        }
+
+        while (logContent->GetNumChildren() > MaxLogEntries)
+        {
+            auto* child = logContent->GetFirstChild();
+            if (child)
+            {
+                logContent->RemoveChild(child);
             }
         }
 
-        if (m_autoScroll)
+        if (m_autoScroll && hasNewLogs)
         {
             m_doc->GetContext()->Update();
             ScrollToBottom();
