@@ -17,9 +17,6 @@
 #include <RmlUi/Core/EventListener.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
-#include <RmlUi/Core/ElementText.h>
-
-#include "RmlUi/Core/Factory.h"
 
 namespace TuRml
 {
@@ -42,71 +39,6 @@ namespace TuRml
         m_commandHistory.clear();
     }
 
-    void TuRmlConsoleDocument::ScrollToBottom()
-    {
-        Rml::Element* logContainer = m_doc->GetElementById("log_container");
-        if (logContainer)
-        {
-            Rml::ScrollIntoViewOptions options{};
-            options.vertical = Rml::ScrollAlignment::Nearest;
-            options.horizontal = Rml::ScrollAlignment::Nearest;
-            options.behavior = Rml::ScrollBehavior::Smooth;
-            logContainer->GetLastChild()->ScrollIntoView(options);
-        }
-    }
-
-    void TuRmlConsoleDocument::SetInputText(const AZStd::string& text)
-    {
-        Rml::Element* inputElement = m_doc->GetElementById("console_input");
-        if (inputElement)
-        {
-            inputElement->SetAttribute("value", text.c_str());
-            if (auto* i = rmlui_dynamic_cast<Rml::ElementFormControlInput*>(inputElement))
-            {
-                i->SetSelectionRange(text.size(), text.size());
-            }
-        }
-    }
-
-    AZStd::string TuRmlConsoleDocument::GetInputText()
-    {
-        Rml::Element* inputElement = m_doc->GetElementById("console_input");
-        if (inputElement)
-        {
-            return inputElement->GetAttribute<Rml::String>("value", "").c_str();
-        }
-        return "";
-    }
-
-    void TuRmlConsoleDocument::FocusInput()
-    {
-        Rml::Element* inputElement = m_doc->GetElementById("console_input");
-        if (inputElement)
-        {
-            inputElement->Focus();
-        }
-    }
-
-    void TuRmlConsoleDocument::SetupEventListeners()
-    {
-        m_doc->AddEventListener(Rml::EventId::Show, this);
-        m_doc->AddEventListener(Rml::EventId::Hide, this);
-
-        // Input field event listener
-        Rml::Element* inputElement = m_doc->GetElementById("console_input");
-        if (inputElement)
-        {
-            inputElement->AddEventListener(Rml::EventId::Keydown, this);
-        }
-
-        // Clear button event listener
-        Rml::Element* clearButton = m_doc->GetElementById("clear_button");
-        if (clearButton)
-        {
-            clearButton->AddEventListener(Rml::EventId::Click, this);
-        }
-    }
-
     bool TuRmlConsoleDocument::OnPreError(const char* window, const char* fileName, int line,
                                           const char* func, const char* message)
     {
@@ -127,123 +59,9 @@ namespace TuRml
         return false;
     }
 
-    void TuRmlConsoleDocument::OnCommandInput(const AZStd::string& command)
+    void TuRmlConsoleDocument::OnSystemTick()
     {
-        if (command.empty())
-        {
-            return;
-        }
-
-        m_commandHistory.push_back(command);
-        if (m_commandHistory.size() > MaxHistorySize)
-        {
-            m_commandHistory.pop_front();
-        }
-        m_historyIndex = -1;
-
-        if (command == "sreload")
-        {
-            //Style reload
-            const auto numCtx = Rml::GetNumContexts();
-            for (int i = 0; i < numCtx; ++i)
-            {
-                auto ctx = Rml::GetContext(i);
-                if (!ctx)
-                    continue;
-
-                const auto numDocs = ctx->GetNumDocuments();
-                for (int j = 0; j < numDocs; ++j)
-                {
-                    auto doc = ctx->GetDocument(j);
-                    if (!doc)
-                        continue;
-
-                    doc->ReloadStyleSheet();
-                }
-            }
-            return;
-        }
-
-        AZ::IConsole* console = AZ::Interface<AZ::IConsole>::Get();
-        if (console)
-        {
-            auto result = console->PerformCommand(command.c_str());
-            if (!result.IsSuccess())
-            {
-                AddLog("Console", "Failed to execute cmd.", AZ::LogLevel::Notice);
-            }
-        }
-        else
-        {
-            AddLog("Console", "Error: IConsole interface not available", AZ::LogLevel::Error);
-        }
-    }
-
-    void TuRmlConsoleDocument::OnClearLogs()
-    {
-        Rml::Element* logContent = m_doc->GetElementById("log_container");
-        if (logContent)
-        {
-            logContent->SetInnerRML("");
-        }
-    }
-
-    void TuRmlConsoleDocument::OnHistoryUp()
-    {
-        if (m_commandHistory.empty())
-        {
-            return;
-        }
-
-        if (m_historyIndex < 0)
-        {
-            m_historyIndex = static_cast<int>(m_commandHistory.size()) - 1;
-        }
-        else if (m_historyIndex > 0)
-        {
-            --m_historyIndex;
-        }
-
-        if (m_historyIndex >= 0 && m_historyIndex < static_cast<int>(m_commandHistory.size()))
-        {
-            SetInputText(m_commandHistory[m_historyIndex]);
-        }
-    }
-
-    void TuRmlConsoleDocument::OnHistoryDown()
-    {
-        if (m_commandHistory.empty() || m_historyIndex < 0)
-        {
-            return;
-        }
-
-        if (m_historyIndex < static_cast<int>(m_commandHistory.size()) - 1)
-        {
-            ++m_historyIndex;
-            SetInputText(m_commandHistory[m_historyIndex]);
-        }
-        else
-        {
-            m_historyIndex = -1;
-            SetInputText(""); // Clear input
-        }
-    }
-
-    void TuRmlConsoleDocument::OnAutoComplete(const AZStd::string& partial)
-    {
-        AZ::IConsole* console = AZ::Interface<AZ::IConsole>::Get();
-        if (!console || partial.empty())
-        {
-            return;
-        }
-
-        AZStd::vector<AZStd::string> matches;
-        AZStd::string longestMatch = console->AutoCompleteCommand(partial.c_str(), &matches);
-
-        if (!longestMatch.empty())
-        {
-            SetInputText(longestMatch);
-        }
+        UpdateLogElements();
     }
 
     void TuRmlConsoleDocument::ProcessEvent(Rml::Event& event)
@@ -310,7 +128,205 @@ namespace TuRml
         }
     }
 
-    // Log management
+    void TuRmlConsoleDocument::OnCommandInput(const AZStd::string& command)
+    {
+        if (command.empty())
+        {
+            return;
+        }
+
+        m_commandHistory.push_back(command);
+        if (m_commandHistory.size() > MaxHistorySize)
+        {
+            m_commandHistory.pop_front();
+        }
+        m_historyIndex = -1;
+
+        if (command == "sreload")
+        {
+            //Style reload
+            const auto numCtx = Rml::GetNumContexts();
+            for (int i = 0; i < numCtx; ++i)
+            {
+                auto ctx = Rml::GetContext(i);
+                if (!ctx)
+                    continue;
+
+                const auto numDocs = ctx->GetNumDocuments();
+                for (int j = 0; j < numDocs; ++j)
+                {
+                    auto doc = ctx->GetDocument(j);
+                    if (!doc)
+                        continue;
+
+                    doc->ReloadStyleSheet();
+                }
+            }
+            return;
+        }
+
+        AZ::IConsole* console = AZ::Interface<AZ::IConsole>::Get();
+        if (console)
+        {
+            auto result = console->PerformCommand(command.c_str());
+            if (!result.IsSuccess())
+            {
+                AddLog("Console", "Failed to execute cmd.", AZ::LogLevel::Notice);
+            }
+        }
+        else
+        {
+            AddLog("Console", "Error: IConsole interface not available", AZ::LogLevel::Error);
+        }
+    }
+
+    void TuRmlConsoleDocument::OnClearLogs() const
+    {
+        Rml::Element* logContent = m_doc->GetElementById("log_container");
+        if (logContent)
+        {
+            logContent->SetInnerRML("");
+        }
+    }
+
+    void TuRmlConsoleDocument::OnHistoryUp()
+    {
+        if (m_commandHistory.empty())
+        {
+            return;
+        }
+
+        if (m_historyIndex < 0)
+        {
+            m_historyIndex = static_cast<int>(m_commandHistory.size()) - 1;
+        }
+        else if (m_historyIndex > 0)
+        {
+            --m_historyIndex;
+        }
+
+        if (m_historyIndex >= 0 && m_historyIndex < static_cast<int>(m_commandHistory.size()))
+        {
+            SetInputText(m_commandHistory[m_historyIndex]);
+        }
+    }
+
+    void TuRmlConsoleDocument::OnHistoryDown()
+    {
+        if (m_commandHistory.empty() || m_historyIndex < 0)
+        {
+            return;
+        }
+
+        if (m_historyIndex < static_cast<int>(m_commandHistory.size()) - 1)
+        {
+            ++m_historyIndex;
+            SetInputText(m_commandHistory[m_historyIndex]);
+        }
+        else
+        {
+            m_historyIndex = -1;
+            SetInputText(""); // Clear input
+        }
+    }
+
+    void TuRmlConsoleDocument::OnAutoComplete(const AZStd::string& partial) const
+    {
+        AZ::IConsole* console = AZ::Interface<AZ::IConsole>::Get();
+        if (!console || partial.empty())
+        {
+            return;
+        }
+
+        AZStd::vector<AZStd::string> matches;
+        AZStd::string longestMatch = console->AutoCompleteCommand(partial.c_str(), &matches);
+
+        if (!longestMatch.empty())
+        {
+            SetInputText(longestMatch);
+        }
+    }
+
+    void TuRmlConsoleDocument::SetupEventListeners()
+    {
+        m_doc->AddEventListener(Rml::EventId::Show, this);
+        m_doc->AddEventListener(Rml::EventId::Hide, this);
+
+        Rml::Element* inputElement = m_doc->GetElementById("console_input");
+        if (inputElement)
+        {
+            inputElement->AddEventListener(Rml::EventId::Keydown, this);
+        }
+
+        Rml::Element* clearButton = m_doc->GetElementById("clear_button");
+        if (clearButton)
+        {
+            clearButton->AddEventListener(Rml::EventId::Click, this);
+        }
+    }
+
+    void TuRmlConsoleDocument::FocusInput() const
+    {
+        Rml::Element* inputElement = m_doc->GetElementById("console_input");
+        if (inputElement)
+        {
+            inputElement->Focus();
+        }
+    }
+
+    void TuRmlConsoleDocument::ScrollToBottom() const
+    {
+        Rml::Element* logContainer = m_doc->GetElementById("log_container");
+        if (logContainer)
+        {
+            Rml::ScrollIntoViewOptions options{};
+            options.vertical = Rml::ScrollAlignment::Nearest;
+            options.horizontal = Rml::ScrollAlignment::Nearest;
+            options.behavior = Rml::ScrollBehavior::Smooth;
+            logContainer->GetLastChild()->ScrollIntoView(options);
+        }
+    }
+
+    void TuRmlConsoleDocument::SetInputText(const AZStd::string& text) const
+    {
+        Rml::Element* inputElement = m_doc->GetElementById("console_input");
+        if (inputElement)
+        {
+            inputElement->SetAttribute("value", text.c_str());
+            if (auto* i = rmlui_dynamic_cast<Rml::ElementFormControlInput*>(inputElement))
+            {
+                i->SetSelectionRange(text.size(), text.size());
+            }
+        }
+    }
+
+    AZStd::string TuRmlConsoleDocument::GetInputText() const
+    {
+        Rml::Element* inputElement = m_doc->GetElementById("console_input");
+        if (inputElement)
+        {
+            return inputElement->GetAttribute<Rml::String>("value", "").c_str();
+        }
+        return "";
+    }
+
+    AZ::Color TuRmlConsoleDocument::GetColorForLogLevel(AZ::LogLevel level)
+    {
+        switch (level)
+        {
+        case AZ::LogLevel::Fatal:
+        case AZ::LogLevel::Error:
+            return AZ::Colors::Red;
+        case AZ::LogLevel::Warn:
+            return AZ::Colors::Yellow;
+        case AZ::LogLevel::Debug:
+        case AZ::LogLevel::Trace:
+            return AZ::Colors::Gray;
+        default:
+            return AZ::Colors::White;
+        }
+    }
+
     void TuRmlConsoleDocument::AddLog(const char* window, const char* message, AZ::LogLevel level)
     {
         AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
@@ -329,37 +345,19 @@ namespace TuRml
         m_logEntries.push(AZStd::move(entry));
     }
 
-    AZ::Color TuRmlConsoleDocument::GetColorForLogLevel(AZ::LogLevel level) const
-    {
-        switch (level)
-        {
-        case AZ::LogLevel::Fatal:
-        case AZ::LogLevel::Error:
-            return AZ::Colors::Red;
-        case AZ::LogLevel::Warn:
-            return AZ::Colors::Yellow;
-        case AZ::LogLevel::Debug:
-        case AZ::LogLevel::Trace:
-            return AZ::Colors::Gray;
-        default:
-            return AZ::Colors::White;
-        }
-    }
-
-    void TuRmlConsoleDocument::UpdateLogDisplay()
-    {
-        UpdateLogElements();
-    }
-
     void TuRmlConsoleDocument::UpdateLogElements()
     {
+        const bool hasNewLogs = !m_logEntries.empty();
+        if (!hasNewLogs)
+        {
+            return;
+        }
+
         Rml::Element* logContent = m_doc->GetElementById("log_container");
         if (!logContent)
         {
             return;
         }
-
-        const bool hasNewLogs = !m_logEntries.empty();
 
         AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
         while (!m_logEntries.empty())
@@ -401,7 +399,7 @@ namespace TuRml
             }
         }
 
-        if (m_autoScroll && hasNewLogs)
+        if (m_autoScroll)
         {
             m_doc->GetContext()->Update();
             ScrollToBottom();
