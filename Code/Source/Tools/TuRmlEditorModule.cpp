@@ -7,8 +7,6 @@
 #include <TuRml/TuRmlTypeIds.h>
 #include <TuRmlModuleInterface.h>
 #include "TuRmlEditorSystemComponent.h"
-#include "Components/EditorTuRmlComponent.h"
-#include "Components/TuRmlTestComponent.h"
 
 namespace TuRml
 {

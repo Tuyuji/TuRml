@@ -8,6 +8,12 @@
 set(FILES
     Source/TuRmlModuleInterface.cpp
     Source/TuRmlModuleInterface.h
+    Source/Clients/Interfaces/TuFile.h
+    Source/Clients/Interfaces/TuFile.cpp
+    Source/Clients/Interfaces/TuInput.h
+    Source/Clients/Interfaces/TuInput.cpp
+    Source/Clients/Interfaces/TuSystem.h
+    Source/Clients/Interfaces/TuSystem.cpp
     Source/Clients/TuRmlSystemComponent.cpp
     Source/Clients/TuRmlSystemComponent.h
     Source/Console/TuRmlConsoleDocument.h
