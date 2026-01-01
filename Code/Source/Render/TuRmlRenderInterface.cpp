@@ -43,15 +43,63 @@ namespace TuRml
         // Clear any pending draw commands
         m_drawCommands.clear();
 
-        AZStd::lock_guard<AZStd::mutex> lock(m_creationCountMutex);
-        if (m_creationCount != 0)
+        const AZ::u64 texturesLeft = m_textureCreationCount;
+        if (texturesLeft != 0)
         {
-            AZ_Error("TuRmlRenderInterface", false, "Still %zu textures left", m_creationCount);
+            AZ_Error("TuRmlRenderInterface", false, "Still %zu textures left", texturesLeft);
         }
 
         AZ_Info("TuRmlRenderInterface", "Destroyed render interface and released all resources");
     }
 
+    void TuRmlRenderInterface::Begin(Rml::Context* ctx)
+    {
+        // Clear any previous draw commands to start fresh
+        m_drawCommands.clear();
+
+        m_transform = AZ::Matrix4x4::CreateIdentity();
+
+        const Rml::Vector2i dia = ctx->GetDimensions();
+
+        auto ortho = Rml::Matrix4f::ProjectOrtho(
+            0.0f,
+            static_cast<float>(dia.x),
+            static_cast<float>(dia.y),
+            0.0f,
+            -1000, 1000);
+
+        m_contextTransform = AZ::Matrix4x4::CreateFromColumnMajorFloat16(reinterpret_cast<const float*>(&ortho));
+
+        m_stencilRef = 1;
+        SetTransform(nullptr);
+    }
+
+    AZStd::vector<TuRmlDrawCommand> TuRmlRenderInterface::End()
+    {
+        return m_drawCommands;
+    }
+
+    TuRmlStoredGeometry* TuRmlRenderInterface::GetStoredGeometry(Rml::CompiledGeometryHandle handle) const
+    {
+        if (!handle)
+        {
+            return nullptr;
+        }
+
+        return reinterpret_cast<TuRmlStoredGeometry*>(handle);
+    }
+
+    const TuRmlStoredTexture* TuRmlRenderInterface::GetStoredTexture(Rml::TextureHandle handle) const
+    {
+        if (!handle)
+        {
+            return nullptr;
+        }
+
+        return reinterpret_cast<TuRmlStoredTexture*>(handle);
+    }
+
+#pragma region Rml::RenderInterface
     Rml::CompiledGeometryHandle TuRmlRenderInterface::CompileGeometry(Rml::Span<const Rml::Vertex> vertices,
                                                                       Rml::Span<const int> indices)
     {
@@ -194,10 +242,7 @@ namespace TuRml
             return 0;
         }
 
-        {
-            AZStd::lock_guard<AZStd::mutex> lock(m_creationCountMutex);
-            m_creationCount++;
-        }
+        ++m_textureCreationCount;
         return reinterpret_cast<Rml::TextureHandle>(storedTex);
     }
 
@@ -249,10 +294,7 @@ namespace TuRml
 
         AZ_Info("TuRmlRenderInterface", "Created texture handle %p (%dx%d, %u bytes)", storedTex, source_dimensions.x,
                 source_dimensions.y, pixelDataSize);
-        {
-            AZStd::lock_guard<AZStd::mutex> lock(m_creationCountMutex);
-            m_creationCount++;
-        }
+        ++m_textureCreationCount;
         return reinterpret_cast<Rml::TextureHandle>(storedTex);
     }
 
@@ -267,10 +309,7 @@ namespace TuRml
         texture->streamingImage.reset();
         texture->textureAsset.Reset();
 
-        {
-            AZStd::lock_guard<AZStd::mutex> lock(m_creationCountMutex);
-            m_creationCount--;
-        }
+        --m_textureCreationCount;
         AZ_Info("TuRmlRenderInterface", "Released texture handle %p (index %zu)", texture, index);
         delete texture;
     }
@@ -341,61 +380,7 @@ namespace TuRml
         m_stencilRef = oldStencilRef;
         m_draw_to_clipmask = false;
     }
-
-    void TuRmlRenderInterface::Begin(Rml::Context* ctx)
-    {
-        // Clear any previous draw commands to start fresh
-        m_drawCommands.clear();
-
-        m_transform = AZ::Matrix4x4::CreateIdentity();
-
-        const Rml::Vector2i dia = ctx->GetDimensions();
-
-        auto ortho = Rml::Matrix4f::ProjectOrtho(
-            0.0f,
-            static_cast<float>(dia.x),
-            static_cast<float>(dia.y),
-            0.0f,
-            -1000, 1000);
-        /*Rml::Matrix4f correction_matrix;
-        correction_matrix.SetColumns(Rml::Vector4f(1.0f, 0.0f, 0.0f, 0.0f), Rml::Vector4f(0.0f, -1.0f, 0.0f, 0.0f), Rml::Vector4f(0.0f, 0.0f, 0.5f, 0.0f),
-                Rml::Vector4f(0.0f, 0.0f, 0.5f, 1.0f));
-        auto finalProj = correction_matrix * ortho;*/
-        m_contextTransform = AZ::Matrix4x4::CreateFromColumnMajorFloat16(reinterpret_cast<const float*>(&ortho));
-
-        m_stencilRef = 1;
-        SetTransform(nullptr);
-    }
-
-    AZStd::vector<TuRmlDrawCommand> TuRmlRenderInterface::End()
-    {
-        AZStd::vector<TuRmlDrawCommand> commands;
-        commands.swap(m_drawCommands); // Move commands and clear the list
-        // AZ_Info("TuRmlRenderInterface", "End collecting draw commands, returning %zu commands", commands.size());
-
-        m_imguiData.m_cachedDrawCmds = commands;
-        return commands;
-    }
-
-    TuRmlStoredGeometry* TuRmlRenderInterface::GetStoredGeometry(Rml::CompiledGeometryHandle handle) const
-    {
-        if (!handle)
-        {
-            return nullptr;
-        }
-
-        return reinterpret_cast<TuRmlStoredGeometry*>(handle);
-    }
-
-    const TuRmlStoredTexture* TuRmlRenderInterface::GetStoredTexture(Rml::TextureHandle handle) const
-    {
-        if (!handle)
-        {
-            return nullptr;
-        }
-
-        return reinterpret_cast<TuRmlStoredTexture*>(handle);
-    }
+#pragma endregion
 
     void TuRmlRenderInterface::ProcessClearQueue()
     {
@@ -405,7 +390,6 @@ namespace TuRml
             TuRmlStoredGeometry::ReleaseGeometry(h);
         }
         m_queuedFree.clear();
-
     }
 
     ReusableBuffer* TuRmlRenderInterface::RequestBuffer(size_t capacity, size_t elementSize)
@@ -470,147 +454,6 @@ namespace TuRml
             ImGui::Text("In Use Count: %zu", inuseCount);
         }
 
-        ImGui::Text("Draw Commands: %zu", m_imguiData.m_cachedDrawCmds.size());
-        ImGui::Separator();
-        for (size_t i = 0; i < m_imguiData.m_cachedDrawCmds.size(); ++i)
-        {
-            const auto& cmd = m_imguiData.m_cachedDrawCmds[i];
-
-            // Create tree node for each draw command
-            AZStd::string nodeLabel;
-            switch (cmd.drawType)
-            {
-            case TuRmlDrawCommand::DrawType::Normal:
-                nodeLabel = AZStd::string::format("Draw %zu: Normal", i);
-                break;
-            case TuRmlDrawCommand::DrawType::Clipmask:
-                nodeLabel = AZStd::string::format("Draw %zu: Clipmask", i);
-                break;
-            case TuRmlDrawCommand::DrawType::ClearClipmask:
-                nodeLabel = AZStd::string::format("Draw %zu: Clear Clipmask", i);
-                break;
-            default:
-                nodeLabel = AZStd::string::format("Draw %zu: Unknown", i);
-                break;
-            }
-
-            if (ImGui::TreeNode(nodeLabel.c_str()))
-            {
-                // Basic command info
-                ImGui::Text("Draw Type: %s",
-                            cmd.drawType == TuRmlDrawCommand::DrawType::Normal
-                                ? "Normal"
-                                : cmd.drawType == TuRmlDrawCommand::DrawType::Clipmask
-                                ? "Clipmask"
-                                : cmd.drawType == TuRmlDrawCommand::DrawType::ClearClipmask
-                                ? "Clear Clipmask"
-                                : "Unknown");
-
-                if (cmd.drawType != TuRmlDrawCommand::DrawType::ClearClipmask)
-                {
-                    // Geometry info
-                    if (ImGui::TreeNode("Geometry"))
-                    {
-                        ImGui::Text("Handle: %p", (void*)(cmd.geometryHandle));
-                        ImGui::TreePop();
-                    }
-
-                    // Transform info
-                    if (ImGui::TreeNode("Transform"))
-                    {
-                        ImGui::Text("Translation: (%.2f, %.2f)", cmd.translation.GetX(), cmd.translation.GetY());
-
-                        if (ImGui::TreeNode("Transform Matrix"))
-                        {
-                            const auto& m = cmd.transform;
-                            ImGui::Text("| %.3f %.3f %.3f %.3f |", m.GetRow(0).GetX(), m.GetRow(0).GetY(),
-                                        m.GetRow(0).GetZ(), m.GetRow(0).GetW());
-                            ImGui::Text("| %.3f %.3f %.3f %.3f |", m.GetRow(1).GetX(), m.GetRow(1).GetY(),
-                                        m.GetRow(1).GetZ(), m.GetRow(1).GetW());
-                            ImGui::Text("| %.3f %.3f %.3f %.3f |", m.GetRow(2).GetX(), m.GetRow(2).GetY(),
-                                        m.GetRow(2).GetZ(), m.GetRow(2).GetW());
-                            ImGui::Text("| %.3f %.3f %.3f %.3f |", m.GetRow(3).GetX(), m.GetRow(3).GetY(),
-                                        m.GetRow(3).GetZ(), m.GetRow(3).GetW());
-                            ImGui::TreePop();
-                        }
-                        ImGui::TreePop();
-                    }
-
-                    // Texture info
-                    if (ImGui::TreeNode("Texture"))
-                    {
-                        ImGui::Text("Handle: %p", reinterpret_cast<void*>(cmd.texture));
-
-                        if (cmd.texture != 0)
-                        {
-                            if (auto storedTex = GetStoredTexture(cmd.texture))
-                            {
-                                    ImGui::Text("Dimensions: %dx%d", storedTex->dimensions.GetX(),
-                                                storedTex->dimensions.GetY());
-                                    ImGui::Text("StreamingImage: %s", storedTex->streamingImage ? "Valid" : "Invalid");
-                            }
-                            else
-                            {
-                                ImGui::Text("Texture: Not found");
-                            }
-                        }
-                        else
-                        {
-                            ImGui::Text("No texture");
-                        }
-                        ImGui::TreePop();
-                    }
-
-                    // Clipping info
-                    if (ImGui::TreeNode("Clipping"))
-                    {
-                        ImGui::Text("Clipmask Enabled: %s", cmd.clipmaskEnabled ? "Yes" : "No");
-                        ImGui::Text("Stencil Ref: %u", cmd.stencilRef);
-
-                        if (cmd.scissorRegion.p0.x != 0 || cmd.scissorRegion.p0.y != 0 ||
-                            cmd.scissorRegion.p1.x != 0 || cmd.scissorRegion.p1.y != 0)
-                        {
-                            ImGui::Text("Scissor Region: (%d, %d) - (%d, %d)",
-                                        cmd.scissorRegion.p0.x, cmd.scissorRegion.p0.y,
-                                        cmd.scissorRegion.p1.x, cmd.scissorRegion.p1.y);
-                            ImGui::Text("Scissor Size: %dx%d",
-                                        cmd.scissorRegion.p1.x - cmd.scissorRegion.p0.x,
-                                        cmd.scissorRegion.p1.y - cmd.scissorRegion.p0.y);
-                        }
-                        else
-                        {
-                            ImGui::Text("No scissor region");
-                        }
-                        ImGui::TreePop();
-                    }
-
-                    // Clipmask operation details
-                    if (cmd.drawType == TuRmlDrawCommand::DrawType::Clipmask)
-                    {
-                        if (ImGui::TreeNode("Clipmask Operation"))
-                        {
-                            const char* opName = "Unknown";
-                            switch (cmd.clipmask_op)
-                            {
-                            case Rml::ClipMaskOperation::Set: opName = "Set";
-                                break;
-                            case Rml::ClipMaskOperation::SetInverse: opName = "SetInverse";
-                                break;
-                            case Rml::ClipMaskOperation::Intersect: opName = "Intersect";
-                                break;
-                            }
-                            ImGui::Text("Operation: %s", opName);
-                            ImGui::TreePop();
-                        }
-                    }
-                }
-
-                ImGui::TreePop();
-            }
-        }
-
         ImGui::End();
-
-        m_imguiData.m_cachedDrawCmds.clear();
     }
 }

@@ -14,13 +14,13 @@
 #include <AzCore/Console/ILogger.h>
 #include <AzCore/Debug/TraceMessageBus.h>
 #include <AzCore/Component/TickBus.h>
-#include <RmlUi/Core/ElementDocument.h>
 
-#include "RmlUi/Core/EventListener.h"
+#include <RmlUi/Core/EventListener.h>
 
 namespace Rml
 {
     class Context;
+    class ElementDocument;
 }
 
 namespace TuRml

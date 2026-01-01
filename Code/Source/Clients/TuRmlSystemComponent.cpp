@@ -19,7 +19,6 @@
 #include <Render/TuRmlRenderInterface.h>
 
 #include <RmlUi/Core.h>
-#include <RmlUi/Debugger/Debugger.h>
 
 #include "../RmlBudget.h"
 AZ_DEFINE_BUDGET(RmlBudget);
@@ -75,6 +74,11 @@ namespace TuRml
         {
             TuRmlInterface::Unregister(this);
         }
+    }
+
+    TuRmlRenderInterface* TuRmlSystemComponent::GetRenderInterface()
+    {
+        return m_renderInterface.get();
     }
 
     void TuRmlSystemComponent::Init()
@@ -146,10 +150,5 @@ namespace TuRml
 
             ctx->Update();
         }
-    }
-
-    TuRmlRenderInterface* TuRmlSystemComponent::GetRenderInterface()
-    {
-        return m_renderInterface.get();
     }
 } // namespace TuRml

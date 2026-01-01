@@ -97,7 +97,13 @@ namespace TuRml
         TuRmlRenderInterface();
         ~TuRmlRenderInterface() override;
 
+        void Begin(Rml::Context* ctx);
+        AZStd::vector<TuRmlDrawCommand> End();
 
+        TuRmlStoredGeometry* GetStoredGeometry(Rml::CompiledGeometryHandle handle) const;
+        const TuRmlStoredTexture* GetStoredTexture(Rml::TextureHandle handle) const;
+
+#pragma region Rml::RenderInterface
         //begin Rml::RenderInterface
         // Required functions for basic rendering
         Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) override;
@@ -118,47 +124,32 @@ namespace TuRml
         void EnableClipMask(bool enable) override;
         void RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry,
                               Rml::Vector2f translation) override;
-
-        //Begin public TuRml
-        void Begin(Rml::Context* ctx);
-        AZStd::vector<TuRmlDrawCommand> End();
-
-        TuRmlStoredGeometry* GetStoredGeometry(Rml::CompiledGeometryHandle handle) const;
-        const TuRmlStoredTexture* GetStoredTexture(Rml::TextureHandle handle) const;
-
-        //Ment for renderer
-        void ProcessClearQueue();
+#pragma endregion
     private:
         friend class TuRmlChildPass;
-        AZStd::vector<AZStd::unique_ptr<ReusableBuffer>> m_buffers;
 
+        void ProcessClearQueue();
         ReusableBuffer* RequestBuffer(size_t capacity, size_t elementSize);
 
-        //! Current draw commands being collected
-        AZStd::vector<TuRmlDrawCommand> m_drawCommands;
-
-        AZStd::mutex m_creationCountMutex;
-        AZ::u64 m_creationCount = 0;
+        AZStd::vector<AZStd::unique_ptr<ReusableBuffer>> m_buffers;
+        AZStd::atomic_uint64_t m_textureCreationCount = 0;
 
         AZStd::mutex m_queuedFreeMutex;
         AZStd::vector<Rml::CompiledGeometryHandle> m_queuedFree;
 
+        //Per frame:
+        //! Current draw commands being collected
+        AZStd::vector<TuRmlDrawCommand> m_drawCommands;
         AZ::Matrix4x4 m_transform;
         AZ::Matrix4x4 m_contextTransform;
-
+        Rml::Rectanglei m_scissorRegion;
+        Rml::ClipMaskOperation m_clipmaskOperation;
+        uint8_t m_stencilRef = 0;
         bool m_scissorEnabled = false;
         bool m_draw_to_clipmask = false;
         bool m_testClipMask = false;
-        Rml::Rectanglei m_scissorRegion;
-        uint8_t m_stencilRef = 0;
-        Rml::ClipMaskOperation m_clipmaskOperation;
 
         //ImGui
-        struct
-        {
-            AZStd::vector<TuRmlDrawCommand> m_cachedDrawCmds;
-        } m_imguiData;
-
         void OnImGuiUpdate() override;
     };
 }
