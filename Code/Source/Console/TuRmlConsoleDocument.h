@@ -57,7 +57,6 @@ namespace TuRml
         void ProcessEvent(Rml::Event& event) override;
     private:
 
-        void SetLogHTML(const AZStd::string& html);
         void ScrollToBottom();
         void SetInputText(const AZStd::string& text);
         AZStd::string GetInputText();

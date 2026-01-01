@@ -17,6 +17,9 @@
 #include <RmlUi/Core/EventListener.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
+#include <RmlUi/Core/ElementText.h>
+
+#include "RmlUi/Core/Factory.h"
 
 namespace TuRml
 {
@@ -42,15 +45,6 @@ namespace TuRml
         }
 
         m_commandHistory.clear();
-    }
-
-    void TuRmlConsoleDocument::SetLogHTML(const AZStd::string& html)
-    {
-        Rml::Element* logContent = m_doc->GetElementById("log_container");
-        if (logContent)
-        {
-            logContent->SetInnerRML(html.c_str());
-        }
     }
 
     void TuRmlConsoleDocument::ScrollToBottom()
@@ -375,6 +369,15 @@ namespace TuRml
 
     void TuRmlConsoleDocument::RebuildLogHTML()
     {
+        Rml::Element* logContent = m_doc->GetElementById("log_container");
+        if (!logContent)
+        {
+            return;
+        }
+
+        //Clear it out
+        logContent->SetInnerRML("");
+
         AZStd::string html;
         {
             AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
@@ -395,19 +398,17 @@ namespace TuRml
                     cssClass = "log_debug";
                 }
 
-                AZStd::string escapedMessage = entry.message;
-                AZStd::replace(escapedMessage.begin(), escapedMessage.end(), '<', '&');
-                AZStd::replace(escapedMessage.begin(), escapedMessage.end(), '>', '&');
+                auto element = m_doc->CreateElement("div");
+                if (!element)
+                {
+                    return;
+                }
+                element->SetClassNames("log_entry " + Rml::String(cssClass));
+                element->SetInnerRML(entry.message.c_str());
 
-                html += AZStd::string::format(
-                    "<div class='log_entry %s'>%s</div>",
-                    cssClass,
-                    entry.message.c_str()
-                );
+                logContent->AppendChild(std::move(element));
             }
         }
-
-        SetLogHTML(html);
 
         if (m_autoScroll)
         {
