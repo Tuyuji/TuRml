@@ -28,5 +28,6 @@ namespace TuRml
         AZ_RTTI(TuRmlFeatureProcessorInterface, "{D41034AD-D364-4BBE-B021-35BA8F50967B}", AZ::RPI::FeatureProcessor);
 
         virtual Rml::Context* GetContext() = 0;
+        virtual void GetChildPasses(AZStd::function<void(class TuRmlChildPass*)> fn) = 0;
     };
 }

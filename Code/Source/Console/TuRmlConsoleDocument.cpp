@@ -359,7 +359,6 @@ namespace TuRml
             return;
         }
 
-        AZStd::lock_guard<AZStd::mutex> lock(m_logMutex);
         while (!m_logEntries.empty())
         {
             const auto& entry = m_logEntries.front();

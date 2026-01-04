@@ -46,15 +46,31 @@ namespace TuRml
         bool srgReady = false;
     };
 
+    struct FrameInfo
+    {
+        AZStd::vector<TuRmlChildPassDrawCommand> drawCmds;
+        //Geo's to free from this frame
+        AZStd::vector<Rml::CompiledGeometryHandle> queuedFreeGeos = {};
+
+        // Shared dynamic buffers for transient geometry
+        AZ::Data::Instance<AZ::RPI::Buffer> m_sharedVertexBuffer;
+        AZ::Data::Instance<AZ::RPI::Buffer> m_sharedIndexBuffer;
+        size_t m_sharedVertexCapacity = 0;
+        size_t m_sharedIndexCapacity = 0;
+
+        void EnsureTransientBufferCapacity(size_t vertexCount, size_t indexCount);
+    };
+
     struct BufferedTuRmlDrawCommands
     {
         static constexpr AZ::u32 DrawCommandBuffering = 2;
-        AZStd::array<AZStd::vector<TuRmlChildPassDrawCommand>, DrawCommandBuffering> m_drawCommands;
+        AZStd::array<FrameInfo, DrawCommandBuffering> m_drawCommands;
         AZ::u8 m_currentIndex = 0;
 
         void NextBuffer() { m_currentIndex = (m_currentIndex + 1) % DrawCommandBuffering; }
 
-        AZStd::vector<TuRmlChildPassDrawCommand>& Get() { return m_drawCommands[m_currentIndex]; }
+        FrameInfo& Get() { return m_drawCommands[m_currentIndex]; }
+        FrameInfo& Get(AZ::u8 idx) { return m_drawCommands[idx]; }
     };
 
     struct PipelineStates
@@ -116,11 +132,14 @@ namespace TuRml
         void SetupFrameGraphDependencies(AZ::RHI::FrameGraphInterface frameGraph) override;
         void CompileResources(const AZ::RHI::FrameGraphCompileContext& context) override;
         void BuildCommandListInternal(const AZ::RHI::FrameGraphExecuteContext& context) override;
+        void FrameEndInternal() override;
 
         void StandardPipelineStateInit(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps);
         void StandardPipelineStateFinish(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps);
 
     private:
+        friend class TuRmlRenderInterface;
+
         TuRmlChildPass() = delete;
         explicit TuRmlChildPass(const AZ::RPI::PassDescriptor& descriptor);
 
@@ -139,5 +158,6 @@ namespace TuRml
         void CreatePipelineStates(PipelineStates& states, AZ::Data::Instance<AZ::RPI::Shader> shader);
 
         PipelineStates m_standard;
+        AZ::u8 m_submittedIdx = 0;
     };
 }

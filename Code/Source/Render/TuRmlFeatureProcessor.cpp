@@ -320,6 +320,19 @@ namespace TuRml
         AZ_UNUSED(bootstrapScene);
     }
 
+    void TuRmlFeatureProcessor::GetChildPasses(AZStd::function<void(class TuRmlChildPass*)> fn)
+    {
+        auto children = m_parentPass->GetChildren();
+        for (auto it = children.begin(); it != children.end(); ++it)
+        {
+            TuRmlChildPass* child = azdynamic_cast<TuRmlChildPass*>(it->get());
+            if (child)
+            {
+                fn(child);
+            }
+        }
+    }
+
     void TuRmlFeatureProcessor::AddDebugToPrimeContext()
     {
         Rml::Debugger::Initialise(m_context);

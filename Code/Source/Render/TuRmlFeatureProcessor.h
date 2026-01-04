@@ -63,6 +63,7 @@ namespace TuRml
         // Bootstrap::NotificationBus::Handler overrides
         void OnBootstrapSceneReady(AZ::RPI::Scene* bootstrapScene) override;
 
+        void GetChildPasses(AZStd::function<void(class TuRmlChildPass*)> fn) override;
     private:
         void AddDebugToPrimeContext();
         Rml::Context* m_context = nullptr;

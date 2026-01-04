@@ -66,6 +66,51 @@ namespace TuRml
         srg->inUse = false;
     }
 
+    void FrameInfo::EnsureTransientBufferCapacity(size_t vertexCount, size_t indexCount)
+    {
+        const size_t vertexBytes = vertexCount * sizeof(Rml::Vertex);
+        const size_t indexBytes = indexCount * sizeof(int);
+
+        // Create or resize vertex buffer if needed
+        if (!m_sharedVertexBuffer || m_sharedVertexCapacity < vertexBytes)
+        {
+            // Grow by 1.5x to reduce frequent reallocations
+            const size_t newCapacity = AZStd::max(vertexBytes, m_sharedVertexCapacity * 3 / 2);
+
+            AZ::RPI::CommonBufferDescriptor desc;
+            desc.m_poolType = AZ::RPI::CommonBufferPoolType::DynamicInputAssembly;
+            desc.m_bufferName = "TuRml Shared Transient Vertex Buffer";
+            desc.m_byteCount = newCapacity;
+            desc.m_elementSize = sizeof(Rml::Vertex);
+            desc.m_bufferData = nullptr;
+
+            m_sharedVertexBuffer = AZ::RPI::BufferSystemInterface::Get()->CreateBufferFromCommonPool(desc);
+            m_sharedVertexCapacity = newCapacity;
+
+            AZ_Info("TuRmlChildPass", "Allocated shared vertex buffer: %zu bytes (%zu vertices)",
+                    newCapacity, newCapacity / sizeof(Rml::Vertex));
+        }
+
+        // Create or resize index buffer if needed
+        if (!m_sharedIndexBuffer || m_sharedIndexCapacity < indexBytes)
+        {
+            const size_t newCapacity = AZStd::max(indexBytes, m_sharedIndexCapacity * 3 / 2);
+
+            AZ::RPI::CommonBufferDescriptor desc;
+            desc.m_poolType = AZ::RPI::CommonBufferPoolType::DynamicInputAssembly;
+            desc.m_bufferName = "TuRml Shared Transient Index Buffer";
+            desc.m_byteCount = newCapacity;
+            desc.m_elementSize = sizeof(int);
+            desc.m_bufferData = nullptr;
+
+            m_sharedIndexBuffer = AZ::RPI::BufferSystemInterface::Get()->CreateBufferFromCommonPool(desc);
+            m_sharedIndexCapacity = newCapacity;
+
+            AZ_Info("TuRmlChildPass", "Allocated shared index buffer: %zu bytes (%zu indices)",
+                    newCapacity, newCapacity / sizeof(int));
+        }
+    }
+
     AZ::RPI::Ptr<TuRmlChildPass> TuRmlChildPass::Create(const AZ::RPI::PassDescriptor& descriptor)
     {
         return aznew TuRmlChildPass(descriptor);
@@ -136,34 +181,16 @@ namespace TuRml
         if (renderInterface == nullptr)
             return;
 
-        renderInterface->ProcessClearQueue();
-        renderInterface->Begin(m_rmlContext);
-        m_rmlContext->Render();
-        auto collectedCommands = renderInterface->End();
-
-        for (auto& command : m_drawCommands.Get())
-        {
-            if (!command.drawSrg)
-            {
-                continue;
-            }
-
-            m_srgRecycler->FreeSrg(command.drawSrg);
-        }
-
         m_drawCommands.NextBuffer();
-        m_drawCommands.Get().clear();
-        m_drawCommands.Get().reserve(collectedCommands.size());
 
-        for (const auto& originalCmd : collectedCommands)
+        renderInterface->Begin(m_rmlContext, this);
         {
-            TuRmlChildPassDrawCommand childPassCmd;
-            childPassCmd.drawCommand = originalCmd;
-            childPassCmd.srgReady = false; // Will be compiled later
-            m_drawCommands.Get().push_back(AZStd::move(childPassCmd));
+            AZ_PROFILE_SCOPE(RmlBudget, "Rml::Context::Render");
+            m_rmlContext->Render();
         }
+        renderInterface->End();
 
-        auto drawCount = static_cast<uint32_t>(m_drawCommands.Get().size());
+        auto drawCount = static_cast<uint32_t>(m_drawCommands.Get().drawCmds.size());
         frameGraph.SetEstimatedItemCount(drawCount);
     }
 
@@ -371,7 +398,7 @@ namespace TuRml
 
         {
             AZ_PROFILE_SCOPE(RmlBudget, "Process DrawCommands");
-            auto& drawCommands = m_drawCommands.Get();
+            auto& drawCommands = m_drawCommands.Get().drawCmds;
             for (auto& childPassCmd : drawCommands)
             {
                 const bool needSRG = childPassCmd.drawCommand.drawType != TuRmlDrawCommand::DrawType::ClearClipmask;
@@ -434,7 +461,8 @@ namespace TuRml
         AZ_PROFILE_FUNCTION(RmlBudget);
         RasterPass::BuildCommandListInternal(context);
         auto tuRmlInterface = TuRmlInterface::Get();
-        auto& drawCommands = m_drawCommands.Get();
+        auto& drawCommands = m_drawCommands.Get().drawCmds;
+        m_submittedIdx =  m_drawCommands.m_currentIndex;
 
         if (tuRmlInterface == nullptr || !m_shader || !m_shader->GetAsset() || drawCommands.empty())
         {
@@ -542,5 +570,33 @@ namespace TuRml
                 commandList->Submit(drawItem, static_cast<uint32_t>(drawIndex));
             }
         }
+    }
+
+    void TuRmlChildPass::FrameEndInternal()
+    {
+        RasterPass::FrameEndInternal();
+        auto& commands = m_drawCommands.Get(m_submittedIdx);
+        for (auto& command : commands.drawCmds)
+        {
+            if (!command.drawSrg)
+            {
+                continue;
+            }
+
+            m_srgRecycler->FreeSrg(command.drawSrg);
+        }
+
+        TuRmlRenderInterface* renderInterface = nullptr;
+        TuRmlRequestBus::BroadcastResult(renderInterface, &TuRmlRequestBus::Events::GetRenderInterface);
+        if (renderInterface == nullptr)
+            return;
+
+        for (auto& geo : commands.queuedFreeGeos)
+        {
+            TuRmlStoredGeometry::ReleaseGeometry(geo);
+        }
+        commands.queuedFreeGeos.clear();
+
+        renderInterface->OnFinishedFrame(this, m_submittedIdx);
     }
 }

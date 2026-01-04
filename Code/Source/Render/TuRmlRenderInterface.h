@@ -42,6 +42,21 @@ namespace TuRml
         AZ_CLASS_ALLOCATOR(TuRmlStoredGeometry, TuRmlRenderAllocator);
         size_t indexCount = 0;
 
+        AZStd::vector<Rml::Vertex> vertices;
+        AZStd::vector<int> indices;
+
+        enum class StorageType
+        {
+            Undecided, // Waiting until End() to figure it otu
+            Transient, // Lives in shared dynamic buffer.
+            Persistent,// Has dedicated buffers
+        };
+        StorageType storageType = StorageType::Undecided;
+        TuRmlChildPass* creatorPass = nullptr;
+
+        size_t vertexOffsetInShared = 0;
+        size_t indexOffsetInShared = 0;
+
         // Persistent buffer assets and instances
         ReusableBuffer* vertexBuffer = nullptr;
         ReusableBuffer* indexBuffer = nullptr;
@@ -66,13 +81,13 @@ namespace TuRml
     //! Collected draw command from RmlUi rendering
     struct TuRmlDrawCommand
     {
-        Rml::CompiledGeometryHandle geometryHandle;
-        AZ::Vector2 translation;
+        Rml::CompiledGeometryHandle geometryHandle = {};
+        AZ::Vector2 translation = {};
         Rml::TextureHandle texture = 0;
 
         AZ::Matrix4x4 transform = AZ::Matrix4x4::CreateIdentity();
 
-        Rml::Rectanglei scissorRegion;
+        Rml::Rectanglei scissorRegion = {};
         bool clipmaskEnabled = false;
         uint8_t stencilRef = 0;
 
@@ -86,7 +101,7 @@ namespace TuRml
         };
 
         DrawType drawType = DrawType::Normal;
-        Rml::ClipMaskOperation clipmask_op;
+        Rml::ClipMaskOperation clipmask_op = {};
     };
 
     class TuRmlRenderInterface
@@ -97,11 +112,13 @@ namespace TuRml
         TuRmlRenderInterface();
         ~TuRmlRenderInterface() override;
 
-        void Begin(Rml::Context* ctx);
-        AZStd::vector<TuRmlDrawCommand> End();
+        void Begin(Rml::Context* ctx, TuRmlChildPass* pass);
+        void End();
 
-        TuRmlStoredGeometry* GetStoredGeometry(Rml::CompiledGeometryHandle handle) const;
-        const TuRmlStoredTexture* GetStoredTexture(Rml::TextureHandle handle) const;
+        void OnFinishedFrame(TuRmlChildPass* pass, AZ::u8 idx);
+
+        static TuRmlStoredGeometry* GetStoredGeometry(Rml::CompiledGeometryHandle handle) ;
+        static const TuRmlStoredTexture* GetStoredTexture(Rml::TextureHandle handle) ;
 
 #pragma region Rml::RenderInterface
         //begin Rml::RenderInterface
@@ -128,18 +145,26 @@ namespace TuRml
     private:
         friend class TuRmlChildPass;
 
-        void ProcessClearQueue();
+        [[nodiscard]] AZStd::vector<struct TuRmlChildPassDrawCommand>& GetDrawCommands() const;
+
+        // Allocate GPU buffers for all geometry (called after End(), before rendering)
+        void AllocateGPUBuffers();
+
         ReusableBuffer* RequestBuffer(size_t capacity, size_t elementSize);
 
+        // Persistent pooled buffers
         AZStd::vector<AZStd::unique_ptr<ReusableBuffer>> m_buffers;
+        //Once rml tells us to destroy geo's well shove them in here and wait until a pass tells us its done with
+        //it to actually destroy it
+        AZStd::unordered_set<Rml::CompiledGeometryHandle> m_destroyedGeometries;
+
         AZStd::atomic_uint64_t m_textureCreationCount = 0;
 
-        AZStd::mutex m_queuedFreeMutex;
-        AZStd::vector<Rml::CompiledGeometryHandle> m_queuedFree;
-
         //Per frame:
-        //! Current draw commands being collected
-        AZStd::vector<TuRmlDrawCommand> m_drawCommands;
+        // Tracking set for geometry created this frame (to detect transients)
+        AZStd::unordered_set<Rml::CompiledGeometryHandle> m_createdThisFrame;
+
+        TuRmlChildPass* m_pass = nullptr;
         AZ::Matrix4x4 m_transform;
         AZ::Matrix4x4 m_contextTransform;
         Rml::Rectanglei m_scissorRegion;
