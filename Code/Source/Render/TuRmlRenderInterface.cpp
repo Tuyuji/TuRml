@@ -44,10 +44,7 @@ namespace TuRml
         m_drawCommands.clear();
 
         const AZ::u64 texturesLeft = m_textureCreationCount;
-        if (texturesLeft != 0)
-        {
-            AZ_Error("TuRmlRenderInterface", false, "Still %zu textures left", texturesLeft);
-        }
+        AZ_Error("TuRmlRenderInterface", texturesLeft == 0, "Still %zu textures left", texturesLeft);
 
         AZ_Info("TuRmlRenderInterface", "Destroyed render interface and released all resources");
     }
