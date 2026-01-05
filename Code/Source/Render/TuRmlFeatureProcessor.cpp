@@ -44,9 +44,7 @@ namespace TuRml
     {
         if (m_context)
         {
-            Rml::Debugger::Shutdown();
             UnregisterContext(m_context);
-            Rml::RemoveContext(m_context->GetName());
             m_context = nullptr;
         }
 
