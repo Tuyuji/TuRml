@@ -15,6 +15,10 @@
             {
                 "Name": "TuRmlChildPassDirectTemplate",
                 "Path": "Passes/TuRml/TuRmlChildPassDirect.pass"
+            },
+            {
+                "Name": "TuRmlCompositeTemplate",
+                "Path": "Passes/TuRml/TuRmlComposite.pass"
             }
         ]
     }

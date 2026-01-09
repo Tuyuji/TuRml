@@ -9,20 +9,52 @@
       "Slots": [
         {
           "Name": "ColorInputOutput",
-          "SlotType": "InputOutput"
+          "SlotType": "InputOutput",
+          "ScopeAttachmentUsage": "RenderTarget"
         },
         {
           "Name": "DepthInputOutput",
           "SlotType": "InputOutput",
           "ScopeAttachmentUsage": "DepthStencil"
+        },
+        //internal to just clear out our direct color image.
+        {
+          "Name": "ColorImageMSAAInternal",
+          "SlotType": "InputOutput",
+          "ScopeAttachmentUsage": "RenderTarget",
+          "LoadStoreAction": {
+            "LoadAction": "Clear",
+            "ClearValue": {
+              "Value": [0.0, 0.0, 0.0, 0.0]
+            }
+          }
         }
       ],
       "ImageAttachments": [
         {
-          "Name": "DepthStencilImage",
+          "Name": "DepthStencilImageMSAA",
           "ImageDescriptor": {
             "Format": "D32_FLOAT_S8X24_UINT",
-            "SharedQueueMask": "Graphics"
+            "SharedQueueMask": "Graphics",
+            "MultisampleState": {
+              "samples": 4
+            }
+          },
+          "SizeSource": {
+            "Source": {
+              "Pass": "This",
+              "Attachment": "ColorInputOutput"
+            }
+          }
+        },
+        {
+          "Name": "ColorImageMSAA",
+          "ImageDescriptor": {
+            "Format": "R8G8B8A8_UNORM",
+            "SharedQueueMask": "Graphics",
+            "MultisampleState": {
+              "samples": 4
+            }
           },
           "SizeSource": {
             "Source": {
@@ -32,12 +64,54 @@
           }
         }
       ],
+      "PassRequests": [
+        {
+          "Name": "MSAAResolveColorPass",
+          "TemplateName": "MSAAResolveColorTemplate",
+          "Connections": [
+            {
+              "LocalSlot": "Input",
+              "AttachmentRef": {
+                "Pass": "Parent",
+                "Attachment": "ColorImageMSAA"
+              }
+            }
+          ]
+        },
+        {
+          "Name": "CompositePass",
+          "TemplateName": "TuRmlCompositeTemplate",
+          "Connections": [
+            {
+              "LocalSlot": "SceneInputOutput",
+              "AttachmentRef": {
+                "Pass": "Parent",
+                "Attachment": "ColorInputOutput"
+              }
+            },
+            {
+              "LocalSlot": "UIInput",
+              "AttachmentRef": {
+                "Pass": "MSAAResolveColorPass",
+                "Attachment": "Output"
+              }
+            }
+          ]
+        }
+      ],
       "Connections": [
         {
           "LocalSlot": "DepthInputOutput",
           "AttachmentRef": {
             "Pass": "This",
-            "Attachment": "DepthStencilImage"
+            "Attachment": "DepthStencilImageMSAA"
+          }
+        },
+        {
+          "LocalSlot": "ColorImageMSAAInternal",
+          "AttachmentRef": {
+            "Pass": "This",
+            "Attachment": "ColorImageMSAA"
           }
         }
       ]

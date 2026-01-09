@@ -149,6 +149,10 @@ namespace TuRml
             m_overrideViewportState = false;
         }
 
+        
+        m_standard = {};
+        m_clearStencilPipelineState = nullptr;
+
         RasterPass::BuildInternal();
     }
 

@@ -44,8 +44,8 @@ VSOutput MainVS(VSInput input)
     output.texCoord = input.texCoord;
     output.color = input.color;
 
-    float2 translatedPos = input.position + DrawSrg::m_translate;
-    output.position = mul(DrawSrg::m_transform, float4(translatedPos, 0.0f, 1.0f));
+    float4 translatedPos = float4(input.position + DrawSrg::m_translate, 0.0f, 1.0f);
+    output.position = mul(DrawSrg::m_transform, translatedPos);
     return output;
 }
 

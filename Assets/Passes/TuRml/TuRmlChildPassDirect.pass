@@ -10,7 +10,11 @@
                 {
                     "Name": "ColorInputOutput",
                     "SlotType": "InputOutput",
-                    "ScopeAttachmentUsage": "RenderTarget"
+                    "ScopeAttachmentUsage": "RenderTarget",
+                    "LoadStoreAction": {
+                        "LoadAction": "Load",
+                        "StoreAction": "Store"
+                    }
                 },
                 {
                     "Name": "DepthInputOutput",
@@ -32,14 +36,14 @@
                     "LocalSlot": "ColorInputOutput",
                     "AttachmentRef": {
                         "Pass": "Parent",
-                        "Attachment": "ColorInputOutput"
+                        "Attachment": "ColorImageMSAA"
                     }
                 },
                 {
                     "LocalSlot": "DepthInputOutput",
                     "AttachmentRef": {
-                        "Pass": "Parent", 
-                        "Attachment": "DepthInputOutput"
+                        "Pass": "Parent",
+                        "Attachment": "DepthStencilImageMSAA"
                     }
                 }
             ],
