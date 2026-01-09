@@ -169,7 +169,7 @@ namespace TuRml
         {
             childPass->SetDirectPipelineMode();
 
-            AddChild(childPass);
+            InsertChild(childPass, 1);
             m_contextPasses[context].m_childPass = childPass;
             m_contextPasses[context].m_renderTarget = nullptr;
             m_contextPasses[context].m_isDirectPipelineMode = true;
